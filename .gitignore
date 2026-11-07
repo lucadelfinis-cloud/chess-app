@@ -1,0 +1,6 @@
+# Files and folders git should never track.
+# One pattern per line. Lines starting with # are comments.
+
+.DS_Store
+.claude/settings.local.json
+node_modules/
