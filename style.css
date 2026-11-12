@@ -1,43 +1,434 @@
+/* ==== Enchanted stone theme ====
+   Colours and sizes live here as variables, so the whole look can be tuned in one place. */
+:root {
+  --bg: #121013;
+  --panel: #241f1c;
+  --panel-2: #302a25;
+  --text: #ece4d6;
+  --muted: #a89c8a;
+  --gold: #d9a45b;           /* candle-gold accent */
+  --gold-bright: #f0c27a;
+
+  --stone-light: #d8d0c0;    /* board squares: pale marble and dark slate */
+  --stone-dark: #474c53;
+  --glow: 255, 186, 92;      /* candlelight colour used by highlights (r, g, b) */
+
+  --frame: 14px;             /* thickness of the stone frame */
+  --board-size: min(calc(92vw - 2 * var(--frame)), calc(100vh - 170px), 620px);
+  --display: "Cinzel", Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #2b2b2b;
-  color: #eee;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 110%, rgba(0, 0, 0, 0.6), transparent),
+    radial-gradient(ellipse 70% 55% at 32% 35%, #2a211b, transparent 70%),
+    var(--bg);
 }
 
-main {
+/* A warm candle glow that gently flickers (opacity only, so it's cheap) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 45% 40% at 32% 38%, rgba(var(--glow), 0.13), transparent 70%);
+  animation: flicker 5s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  20% { opacity: 0.82; }
+  35% { opacity: 0.95; }
+  60% { opacity: 0.78; }
+  80% { opacity: 0.92; }
+}
+
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+h2 {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid #ffffff12;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 120ms, transform 80ms;
+}
+button:hover:not(:disabled) { background: #3d362f; }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.primary {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #2a1d0e;
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-color: #00000040;
+}
+button.primary:hover { background: linear-gradient(180deg, #f6d092, #e2b06b); }
+button.ghost { background: transparent; border-color: #ffffff40; }
+
+/* ---- Page layout: board left, panel right (stacked on narrow screens) ---- */
+.layout {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px 16px;
+}
+
+.board-area {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 16px;
+  gap: 10px;
+  width: calc(var(--board-size) + 2 * var(--frame));
 }
 
-#status {
-  font-size: 1.2rem;
-  min-height: 1.5em;
+.player {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 4px;
+  color: var(--muted);
 }
 
-/* The board: an 8x8 grid that stays square and fits small screens */
-#board {
+/* ---- The stone frame around the board ---- */
+.board-frame {
+  padding: var(--frame);
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, #5a534b 0%, #3a352f 35%, #24201c 100%);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.65),
+    0 0 80px rgba(var(--glow), 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.55);
+}
+
+/* ---- The board ---- */
+.board {
+  position: relative;
+  width: var(--board-size);
+  aspect-ratio: 1;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px #1a1714, inset 0 0 0 1px #000;
+  container-type: size;     /* lets pieces size themselves to the board (cqw units) */
+  touch-action: none;       /* dragging a piece on a phone shouldn't scroll the page */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.squares {
+  position: absolute;
+  inset: 0;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  width: min(90vw, 480px);
-  aspect-ratio: 1;
-  border: 4px solid #5a3e2b;
+  grid-template-rows: repeat(8, 1fr);
 }
 
-.square {
+/* Stone grain over the whole board: one static noise texture, drawn once.
+   `will-change` gives it its own layer, so it's never redrawn when highlights change. */
+.squares::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.13;
+  will-change: transform;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.square { position: relative; }
+/* Each square is lit slightly from the top left, like polished stone */
+.square.light { background: linear-gradient(135deg, #e6dfd1, var(--stone-light) 55%, #c4baa6); }
+.square.dark  { background: linear-gradient(135deg, #565c64, var(--stone-dark) 55%, #383c42); }
+
+/* Highlights glow like candlelight. They sit in ::before, above the stone */
+.square::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.square.last-move::before {
+  background: radial-gradient(circle, rgba(var(--glow), 0.5), rgba(var(--glow), 0.28) 75%);
+}
+.square.selected::before {
+  background: radial-gradient(circle, rgba(var(--glow), 0.7), rgba(var(--glow), 0.4) 75%);
+  box-shadow: inset 0 0 1.2cqw rgba(255, 220, 150, 0.9);
+}
+.square.check::before {
+  background: radial-gradient(circle, rgba(255, 60, 30, 0.95) 0%, rgba(220, 40, 20, 0.5) 45%, transparent 75%);
+}
+.square.drag-over::before { box-shadow: inset 0 0 0 0.5cqw rgba(255, 225, 170, 0.9); }
+
+/* Legal-move markers: a glowing ember dot, or a glowing ring around capturable pieces */
+.square.hint::after,
+.square.hint-capture::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.square.hint::after {
+  inset: 36%;
+  background: radial-gradient(circle, rgba(255, 228, 170, 0.95) 0 30%, rgba(var(--glow), 0.55) 55%, transparent 72%);
+}
+.square.hint-capture::after {
+  inset: 5%;
+  border: 0.6cqw solid rgba(var(--glow), 0.85);
+  box-shadow: 0 0 1.2cqw rgba(var(--glow), 0.7), inset 0 0 1.2cqw rgba(var(--glow), 0.5);
+}
+
+/* a-h and 1-8 labels, as if engraved */
+.coord {
+  position: absolute;
+  font-family: Georgia, serif;   /* Cinzel's "1" looks like a Roman "I" */
+  font-size: 1.9cqw;
+  font-weight: 700;
+  pointer-events: none;
+}
+.coord.rank { top: 3%; left: 5%; }
+.coord.file { bottom: 2%; right: 6%; }
+.light .coord { color: #7a705f; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
+.dark .coord  { color: #b9b1a2; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6); }
+
+/* ---- Pieces: positioned with transform so moves can glide ---- */
+.pieces {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  isolation: isolate;       /* keeps captured pieces' layering inside the board */
+}
+
+.piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12.5%;
+  height: 12.5%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: min(9vw, 48px);
-  font-family: "Segoe UI Symbol", "Apple Symbols", serif;
-  cursor: pointer;
-  user-select: none;
+  /* SLIDE_MS in board.js should match this duration */
+  transition: transform 300ms cubic-bezier(0.45, 0.05, 0.25, 1), scale 140ms;
+  will-change: transform;
+}
+/* A soft shadow on the board under each piece; it stays put while the piece hops */
+.piece::before {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 7%;
+  height: 12%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.5), transparent);
+}
+.piece svg {
+  position: relative;
+  width: 92%;
+  height: 92%;
+  overflow: visible;
+  transform-origin: 50% 88%;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+/* Marble and granite. `color` sets the carved detail lines */
+.piece.w svg, .promotion.w svg { fill: url(#marble); stroke: #51483a; color: rgba(90, 76, 58, 0.6); }
+.piece.b svg, .promotion.b svg { fill: url(#granite); stroke: #0a0b0d; color: rgba(255, 255, 255, 0.25); }
+
+.piece.no-anim  { transition: scale 140ms; }
+.piece.dragging { transition: scale 140ms; scale: 1.14; z-index: 10; }
+.piece.dragging::before { opacity: 0.5; }
+.piece.captured { z-index: -1; }
+
+/* Stone fragments from a capture */
+.debris {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12.5%;
+  height: 12.5%;
+  z-index: 5;
+  pointer-events: none;
+}
+.shard {
+  position: absolute;
+  left: 44%;
+  top: 44%;
+  width: 13%;
+  height: 13%;
+  opacity: 0;
+}
+.debris.w .shard { background: linear-gradient(135deg, #fffaf0, #b4a891); }
+.debris.b .shard { background: linear-gradient(135deg, #8a909a, #1d2024); }
+
+/* ---- Game-over card over the board ---- */
+.result {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 8, 6, 0.5);
+  animation: fade-in 300ms ease;
+}
+.result[hidden] { display: none; }
+.result-card {
+  background: linear-gradient(180deg, #2c2622, #1f1b18);
+  border: 1px solid rgba(var(--glow), 0.35);
+  padding: 24px 28px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 40px rgba(var(--glow), 0.12);
+  display: grid;
+  gap: 10px;
+}
+.result-card p {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--gold-bright);
+}
+@keyframes fade-in { from { opacity: 0; } }
+
+/* ---- Side panel ---- */
+.panel {
+  width: min(100%, 320px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: linear-gradient(180deg, #29231f, var(--panel));
+  border: 1px solid #ffffff10;
+  border-radius: 12px;
+  padding: 18px 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
 }
 
-.light { background: #f0d9b5; color: #000; }
-.dark  { background: #b58863; color: #000; }
+.title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold-bright);
+  text-shadow: 0 0 18px rgba(var(--glow), 0.35);
+}
 
-/* The piece you clicked first */
-.selected { box-shadow: inset 0 0 0 4px #4a90e2; }
+.status {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  min-height: 1.5em;
+}
+.status.thinking { color: var(--muted); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+
+.moves-box { background: var(--panel-2); border-radius: 8px; padding: 10px 12px; }
+.moves {
+  margin: 0;
+  padding-left: 2.2em;
+  height: 150px;
+  overflow-y: auto;
+  font-variant-numeric: tabular-nums;
+}
+.moves li { padding: 2px 0; color: var(--muted); }
+.moves li span {
+  display: inline-block;
+  min-width: 4.5em;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: var(--text);
+}
+.moves li span.latest { background: rgba(var(--glow), 0.18); }
+
+.controls { display: flex; gap: 8px; }
+.controls button { flex: 1; }
+
+.setup { display: flex; flex-direction: column; gap: 12px; }
+.setup fieldset { border: 0; padding: 0; margin: 0; }
+.setup fieldset[hidden] { display: none; }
+.setup legend { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+
+/* Radio buttons shown as a row of toggle buttons */
+.segmented {
+  display: flex;
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 3px;
+}
+.segmented label { flex: 1; }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented span {
+  display: block;
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 120ms;
+}
+.segmented input:checked + span {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #2a1d0e;
+  font-weight: 700;
+}
+.segmented input:focus-visible + span { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Stacked version, one option per row: name on the left, rating on the right */
+.segmented.vertical { flex-direction: column; gap: 2px; }
+.segmented.vertical span {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  padding: 6px 10px;
+}
+.segmented.vertical small { opacity: 0.75; font-variant-numeric: tabular-nums; }
+.segmented.vertical input:checked + span small { opacity: 0.9; }
+
+/* ---- Promotion picker ---- */
+.promotion {
+  border: 1px solid rgba(var(--glow), 0.35);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: center;
+}
+.promotion::backdrop { background: rgba(0, 0, 0, 0.55); }
+.promotion p { margin: 0 0 10px; font-family: var(--display); font-weight: 700; }
+.promo-choices { display: flex; gap: 8px; }
+.promo-choices button {
+  width: 68px;
+  height: 68px;
+  padding: 6px;
+  background: linear-gradient(135deg, #e6dfd1, #c4baa6);
+}
+.promo-choices button:hover { background: linear-gradient(135deg, #fff8ea, #d8cdb8); }
+.promo-choices svg { width: 100%; height: 100%; stroke-width: 1.8; stroke-linejoin: round; }
+
+/* People who've asked their computer for less motion get no flicker or pulsing */
+@media (prefers-reduced-motion: reduce) {
+  body::before, .status.thinking { animation: none; }
+}

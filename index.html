@@ -3,18 +3,170 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chess</title>
+  <title>Stone Chess</title>
+  <!-- Cinzel: a carved, Roman-inscription style font for headings -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
-    <h1>Chess</h1>
-    <p id="status">Loading…</p>
-    <!-- main.js fills this with 64 squares -->
-    <div id="board"></div>
+  <!-- The carved-stone piece drawings. Each is defined once here and reused by
+       every piece on the board (board.js points to them by id, e.g. #p-q). -->
+  <svg class="defs" width="0" height="0" aria-hidden="true">
+    <defs>
+      <!-- Lit from the top left, so the light side of each piece faces the same way -->
+      <linearGradient id="marble" gradientUnits="userSpaceOnUse" x1="25" y1="8" x2="78" y2="92">
+        <stop offset="0" stop-color="#fffdf7"/>
+        <stop offset="0.5" stop-color="#e4dac6"/>
+        <stop offset="1" stop-color="#a39782"/>
+      </linearGradient>
+      <linearGradient id="granite" gradientUnits="userSpaceOnUse" x1="25" y1="8" x2="78" y2="92">
+        <stop offset="0" stop-color="#7d838d"/>
+        <stop offset="0.45" stop-color="#454a52"/>
+        <stop offset="1" stop-color="#15171a"/>
+      </linearGradient>
+
+      <!-- The plinth every piece stands on -->
+      <g id="base">
+        <path d="M24 90 C24 84 28 81 34 81 H66 C72 81 76 84 76 90 Z"/>
+        <path d="M30 81 C30 77 33 75 37 75 H63 C67 75 70 77 70 81 Z"/>
+      </g>
+
+      <symbol id="p-p" viewBox="0 0 100 100">
+        <use href="#base"/>
+        <path d="M36 75 C38 66 43 60 45 54 H55 C57 60 62 66 64 75 Z"/>
+        <path d="M38 55 C38 51 42 49 46 49 H54 C58 49 62 51 62 55 Z"/>
+        <circle cx="50" cy="37" r="12"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M42 69 H58"/>
+      </symbol>
+
+      <symbol id="p-r" viewBox="0 0 100 100">
+        <use href="#base"/>
+        <path d="M35 75 L38 44 H62 L65 75 Z"/>
+        <path d="M33 44 V24 H41 V31 H46 V24 H54 V31 H59 V24 H67 V44 Z"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M38 51 H62 M37 63 H63 M50 51 V63 M43 63 V74 M57 63 V74"/>
+      </symbol>
+
+      <symbol id="p-b" viewBox="0 0 100 100">
+        <use href="#base"/>
+        <path d="M35 75 C38 66 43 60 44 53 H56 C57 60 62 66 65 75 Z"/>
+        <path d="M38 54 C38 50 42 48 46 48 H54 C58 48 62 50 62 54 Z"/>
+        <path d="M50 15 C41 23 36 32 38 40 C40 46 60 46 62 40 C64 32 59 23 50 15 Z"/>
+        <circle cx="50" cy="12" r="4"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M55 23 L46 35"/>
+      </symbol>
+
+      <symbol id="p-n" viewBox="0 0 100 100">
+        <use href="#base"/>
+        <path d="M33 75 C33 64 37 57 45 51 C41 49 35 50 30 53 C26 50 25 44 30 39 C36 31 43 24 50 19 L52 11 L57 18 C67 22 73 33 72 48 C71 60 67 68 68 75 Z"/>
+        <circle fill="currentColor" stroke="none" cx="46" cy="30" r="2.4"/>
+        <circle fill="currentColor" stroke="none" cx="31.5" cy="45" r="1.4"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M57 21 C64 29 66 39 64 51 M60 24 C66 31 68 40 67 50"/>
+      </symbol>
+
+      <symbol id="p-q" viewBox="0 0 100 100">
+        <use href="#base"/>
+        <path d="M34 75 C39 64 43 56 43 48 H57 C57 56 61 64 66 75 Z"/>
+        <path d="M38 49 C38 45 42 43 46 43 H54 C58 43 62 45 62 49 Z"/>
+        <path d="M38 44 L30 22 L40 32 L42 14 L48 30 L50 10 L52 30 L58 14 L60 32 L70 22 L62 44 Z"/>
+        <circle cx="30" cy="21" r="3.4"/>
+        <circle cx="42" cy="13" r="3.4"/>
+        <circle cx="50" cy="9" r="3.4"/>
+        <circle cx="58" cy="13" r="3.4"/>
+        <circle cx="70" cy="21" r="3.4"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M40 38 H60"/>
+      </symbol>
+
+      <symbol id="p-k" viewBox="0 0 100 100">
+        <use href="#base"/>
+        <path d="M34 75 C39 64 43 56 43 48 H57 C57 56 61 64 66 75 Z"/>
+        <path d="M38 49 C38 45 42 43 46 43 H54 C58 43 62 45 62 49 Z"/>
+        <path d="M38 44 L35 28 C44 24 56 24 65 28 L62 44 Z"/>
+        <path d="M47 6 H53 V12 H59 V18 H53 V25 H47 V18 H41 V12 H47 Z"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M38 36 H62"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <main class="layout">
+    <!-- Left: the board in its stone frame, with a name bar above and below -->
+    <section class="board-area">
+      <div class="player" id="player-top"></div>
+      <div class="board-frame">
+        <div id="board" class="board">
+          <!-- board.js adds the squares and pieces here -->
+          <div id="result" class="result" hidden>
+            <div class="result-card">
+              <p id="result-text"></p>
+              <button type="button" id="result-new" class="primary">New game</button>
+              <button type="button" id="result-close" class="ghost">View board</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="player" id="player-bottom"></div>
+    </section>
+
+    <!-- Right: status, moves, controls, new-game setup -->
+    <aside class="panel">
+      <h1 class="title">Stone Chess</h1>
+      <p id="status" class="status">Loading…</p>
+
+      <div class="moves-box">
+        <h2>Moves</h2>
+        <ol id="moves" class="moves"></ol>
+      </div>
+
+      <div class="controls">
+        <button type="button" id="undo">↶ Undo</button>
+        <button type="button" id="flip">⇅ Flip board</button>
+      </div>
+
+      <form id="setup" class="setup">
+        <h2>New game</h2>
+
+        <fieldset>
+          <legend>Opponent</legend>
+          <div class="segmented">
+            <label><input type="radio" name="mode" value="computer" checked><span>Computer</span></label>
+            <label><input type="radio" name="mode" value="friend"><span>Friend</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="computer-only">
+          <legend>Computer strength</legend>
+          <!-- main.js fills this with one option per level in engine.js -->
+          <div class="segmented vertical" id="level-options"></div>
+        </fieldset>
+
+        <fieldset class="computer-only">
+          <legend>Play as</legend>
+          <div class="segmented">
+            <label><input type="radio" name="color" value="w" checked><span>White</span></label>
+            <label><input type="radio" name="color" value="b"><span>Black</span></label>
+            <label><input type="radio" name="color" value="random"><span>Random</span></label>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="primary">Start new game</button>
+      </form>
+    </aside>
   </main>
 
-  <!-- type="module" lets main.js use `import` -->
+  <!-- Pops up when a pawn reaches the last rank -->
+  <dialog id="promotion" class="promotion">
+    <form method="dialog">
+      <p>Promote to</p>
+      <div class="promo-choices">
+        <button value="q" title="Queen"><svg viewBox="0 0 100 100"><use href="#p-q"/></svg></button>
+        <button value="r" title="Rook"><svg viewBox="0 0 100 100"><use href="#p-r"/></svg></button>
+        <button value="b" title="Bishop"><svg viewBox="0 0 100 100"><use href="#p-b"/></svg></button>
+        <button value="n" title="Knight"><svg viewBox="0 0 100 100"><use href="#p-n"/></svg></button>
+      </div>
+    </form>
+  </dialog>
+
   <script type="module" src="main.js"></script>
 </body>
 </html>
